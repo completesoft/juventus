@@ -1,13 +1,19 @@
-import requests
-import json, os, sys
-import time, datetime
 import lib
-
-# url = 'http://localhost/python/phptest.php'
-# headers = {'content-type': 'application/json'}
+import os
 
 
-print(lib.zapros())
-if lib.zapros()["action"]=="update":
-    lib.download()
-    # lib.archive_rename()
+resp = lib.first_request()
+
+while resp["action"] != "none":
+    if resp["action"] == "get_current_versions":
+        resp=lib.ver_info()
+    if resp["action"] == "update":
+        for app in resp["software"]:
+            lib.download(app["update_url"])
+            if lib.hash_control(app["update_url"], app["hash"]):
+                lib.archive_unzip_update(os.path.basename(app["update_url"]))
+
+
+
+
+

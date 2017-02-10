@@ -1,1 +1,1 @@
-{"version": "2017010102", "url": "http://localhost/python/test.zip", "name": "akm"}
+[{"name": "akm", "version": "2017013101", }, {"name": "B", "version": "2017013118"}, {"name": "C", "version": "2017013120"}]
