@@ -9,14 +9,16 @@ import hashlib
 softListPath = 'softList.txt'
 softListLocal = json.load(open(softListPath, "r"))
 work_station_id = 12345
-url = 'http://localhost/python/phptest.php'
+# url = 'http://localhost/python/phptest.php'
+url = "http://hive.product.in.ua:8885/api/debug/update"
 headers = {'content-type': 'application/json'}
 localPathTemp = "D:/test"
 
 
 def first_request():
-    data = {"id": work_station_id, "timestamp": int(time.time()), "status": "ok"}
-    r = requests.post(url, headers=headers, json=json.dumps(data))
+    # data = {"id": work_station_id, "timestamp": int(time.time()), "status": "ok"}
+    # r = requests.post(url, headers=headers, json=data)
+    r = requests.post(url, headers=headers)
     return r.json()
 
 
@@ -27,19 +29,21 @@ def download(urlDownLoad, localPath=localPathTemp):
     code.close()
 
 
-def archive_unzip_update(url_app):
-    zip_obj = zipfile.ZipFile(os.path.join(localPathTemp+os.path.split(url_app)[1]))
+def archive_unzip_update(url_app, app_name):
+    print(os.path.split(url_app)[1])
+    zip_obj = zipfile.ZipFile(os.path.join(localPathTemp, os.path.split(url_app)[1]))
     extract_list = zip_obj.namelist()
+    os.mkdir()
     zip_obj.extractall(localPathTemp)
     zip_obj.close()
-    app_summary = get_app_on_name(url_app)
-    for f in extract_list:
-        if os.path.isfile(os.path.join(app_summary["cwd"], f)):
-            name, extension = os.path.splitext(f)
-            os.rename(os.path.join(app_summary["cwd"], f), os.path.join(app_summary["cwd"], (name+"_old"+extension)))
-            shutil.move(os.path.join(localPathTemp, f), os.path.join(app_summary["cwd"], f))
-        else:
-            shutil.move(os.path.join(localPathTemp, f), os.path.join(app_summary["cwd"], f))
+    # app_summary = get_app_on_name(url_app)
+    # for f in extract_list:
+    #     if os.path.isfile(os.path.join(app_summary["cwd"], f)):
+    #         name, extension = os.path.splitext(f)
+    #         os.rename(os.path.join(app_summary["cwd"], f), os.path.join(app_summary["cwd"], (name+"_old"+extension)))
+    #         shutil.move(os.path.join(localPathTemp, f), os.path.join(app_summary["cwd"], f))
+    #     else:
+    #         shutil.move(os.path.join(localPathTemp, f), os.path.join(app_summary["cwd"], f))
 
 
 
