@@ -123,7 +123,7 @@ def register_f(client_name=""):
         })
 
         json.dump(config, open(os.path.join(local_path, "config.json"), "w"), indent=4, sort_keys=True)
-        print("Клиент УСПЕШНО установлеН")
+        print("Клиент УСПЕШНО установлен в каталог " + json.load(open("setup-config.json", "r"))["api"]["updater_dir"])
 
     else:
         print(resp)
