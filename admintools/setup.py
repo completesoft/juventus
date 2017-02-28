@@ -24,94 +24,211 @@ import hashlib
 import os
 import platform
 
-config_file = "setup-config.json"
-localPath = json.load(open(config_file, "r"))["api"]["updater_dir"]
 
-def archive_unzip(app_dir, app_file):
-    zip_obj = zipfile.ZipFile(os.path.join(app_dir, app_file))
-    extract_list = zip_obj.namelist()
-    zip_obj.extractall(localPath)
-    zip_obj.close()
-    return extract_list
-
-def download(urlDownLoad, local_Path = localPath):
-    path_d = local_Path
-    r = requests.post(urlDownLoad)
-    with open(os.path.join(path_d, os.path.basename(urlDownLoad)), "wb") as code:
-        code.write(r.content)
+def download(source_path, local_path):
+    r = request_setup(url=source_path)
+    with open(os.path.join(local_path, os.path.basename(source_path)), "wb") as code:
+        code.write(r)
     code.close()
-    return path_d, os.path.basename(urlDownLoad)
+    return os.path.join(local_path, os.path.basename(source_path))
 
-def request_setup (data):
+
+def archive_unzip(src_file_path):
+    zip_obj = zipfile.ZipFile(src_file_path)
+    zip_obj.extractall(os.path.split(src_file_path)[0])
+    zip_obj.close()
+
+
+def get_pass():
+    pw = getpass.getpass("Enter password: ")
+    pw = hashlib.md5(str.encode(pw))
+    return pw.hexdigest()
+
+
+def request_setup(url=json.load(open("setup-config.json", "r"))["api"]["url"], data=None):
+    url = url
+    data = data
     headers = {"content-type": "application/json"}
-    data_first = data
-    url = json.load(open(config_file, "r"))["api"]["url"]
-    r = requests.post(url, headers=headers, json=data_first)
-    if r.json()["status"] == "registered":
-        conf_f = json.load(open(config_file, "r"))
-        conf_f["id"] = r.json()["id"]
-        conf_f["key"] = r.json()["key"]
-        conf_f["name"] = data["name"]
-        json.dump(conf_f,open(config_file, "w"))
-        data_second = {"action": "get_list"}
-        r = requests.post(url, headers=headers, json=data_second)
-        soft_info_tmp = [app for app in r.json()["software"] if app["name"] == "updater"]
-        soft_info = soft_info_tmp[0]
-        path_d = download(soft_info["url"])
-        extract_list = archive_unzip(path_d[0], path_d[1])
-        del soft_info["description"]
-        del soft_info["url"]
-        soft_info["local_path"] = localPath
-        soft_info["dialog"] = 0
-        soft_info["state"] = "normal"
-        conf_f = json.load(open(config_file, "r"))
-        config_client = {
-                        "id": conf_f["id"],
-                        "name": conf_f["name"],
-                        "key": conf_f["key"],
-                        "tmp_dir": "tmp",
-                        "backup_dir": "backup",
-                        "software": soft_info
-                        }
-        json.dump(config_client, open(os.path.join(localPath, "config.json"), "w"))
-        print("Клиент УСПЕШНО установлеН")
-    else:
+    if data:
+        r = requests.post(url, headers=headers, json=data)
         return r.json()
+    else:
+        r = requests.post(url)
+        return r.content
 
-def command(args):
-    arg_l=args
-    if arg_l[1] == "register":
-        if len(arg_l) == 2:
-            print("Вы не указали имя клиента, можно использовать имя компьютера: {}.".format(platform.node()))
-            ans = input("Использвать имя компьютера - \"y\", ввести своё - \"n\"")
-            if (ans.lower() != "y" or ans.lower() != "yes"):
-                ans = input("Введите имя клиента: ")
-            else:
-                ans=""
-            data = {"action": arg_l[1], "name": ans if ans else platform.node()}
+
+def prepare_path():
+    local_path = json.load(open("setup-config.json", "r"))["api"]["updater_dir"]
+    if not os.path.exists(local_path):
+        os.makedirs(local_path)
+        return local_path
+    if os.path.exists(local_path) and not os.listdir(local_path):
+        return local_path
+    else:
+        print("Директория установки не пустая, видимо клиент уже установлен")
+        return 0
+
+
+def register_f(client_name=""):
+    # Check destination folder
+    local_path = prepare_path()
+    if not local_path:
+        return 1
+
+    if len(sys.argv) >= 3:
+        client_name = sys.argv[2]
+    if not client_name:
+        print("Вы не указали имя клиента, можно использовать имя компьютера: {}.".format(platform.node()))
+        ans = input("Использвать имя компьютера - \"y\", ввести своё - \"n\"")
+        if ans in ("n", "N"):
+            client_name = input("Введите имя клиента: ")
         else:
-            data = {"action": arg_l[1], "name": arg_l[2]}
-        return data
+            client_name = platform.node()
+    data = {"action": "register", "name": client_name}
 
-    elif arg_l[1] == "add":
-        ...
+    # Ask password
+    pas = get_pass()
+    data["key"] = pas
 
-    elif args[1] == "del":
-        ...
+    resp = request_setup(data=data)
 
-    elif args[1] == "list":
-        ...
+    if "status" in resp.keys() and resp["status"] == "registered":
+        config = {"name": data["name"], "id": resp["id"], "key": resp["key"]}
 
+        resp_1 = list_f(prnt=False)
+
+        soft_info = [app for app in resp_1["software"] if app["name"] == "updater"][0]
+
+        # local_path = prepare_path()
+        updater_source_zip = download(soft_info["url"], local_path)
+        archive_unzip(updater_source_zip)
+        os.remove(updater_source_zip)
+
+        # Make "tmp" and "backup" dir
+        os.makedirs(os.path.join(local_path, "tmp"))
+        os.makedirs(os.path.join(local_path, "backup"))
+
+        # Add info to config.json
+        config.update({"tmp_dir": "tmp",
+                       "backup_dir": "backup",
+                       "software": [
+                      {
+                       "name": soft_info["name"],
+                       "version": soft_info["version"],
+                       "local_path": local_path,
+                       "dialog": 0,
+                       "state": "normal"
+                      }
+            ]
+        })
+
+        json.dump(config, open(os.path.join(local_path, "config.json"), "w"), indent=4, sort_keys=True)
+        print("Клиент УСПЕШНО установлеН")
+
+    else:
+        print(resp)
+
+
+def add_f(app_name=None, path=None):
+    if len(sys.argv) >= 4:
+        app_name = sys.argv[2]
+        path = sys.argv[3]
+
+    if not app_name or not path:
+        print("Не хватает параметров")
+        return 1
+
+    if not os.access(os.path.join(json.load(open("setup-config.json", "r"))["api"]["updater_dir"], "config.json"), os.F_OK):
+        print("Файл конфигурации клиента не найден")
+        return 1
+
+    conf_path = os.path.join(json.load(open("setup-config.json", "r"))["api"]["updater_dir"], "config.json")
+    loc_conf_file = json.load(open(conf_path, "r"))
+    loc_conf_file_soft = loc_conf_file["software"]
+
+    loc_name_flag = False
+
+    for w in loc_conf_file_soft:
+        if w["name"] == app_name:
+            loc_name_flag = True
+            break
+
+    if loc_name_flag:
+        print("П/о с названием \"{}\" уже зарегестрировано в конфигурации".format(app_name))
+        return 1
+
+    conf_file = list_f(prnt=False)
+    conf_file_soft = conf_file["software"]
+
+    name_flag = False
+    i = 0
+    for w in conf_file_soft:
+        if w["name"] == app_name:
+            name_flag = True
+            break
+        i += 1
+
+    if not name_flag:
+        print("П/о с названием \"{}\" отсутствует в БД".format(app_name))
+        return 1
+
+    app_dict = {
+        "name": app_name,
+        "version": None,
+        "local_path": path,
+        "dialog": 0,
+        "state": "update"
+    }
+
+    loc_conf_file["software"].append(app_dict)
+    json.dump(loc_conf_file, open(conf_path, "w"), indent=4, sort_keys=True)
+    print("П/о \"{}\" добавлено в конфигурацию".format(app_name))
+    return 0
+
+
+def del_f(app_name=None):
+    if len(sys.argv) >= 3:
+        app_name = sys.argv[2]
+
+    conf_path = os.path.join(json.load(open("setup-config.json", "r"))["api"]["updater_dir"], "config.json")
+    conf_file = json.load(open(conf_path, "r"))
+    conf_file_soft = json.load(open(conf_path, "r"))["software"]
+
+    name_flag = True
+    i = 0
+    for w in conf_file_soft:
+        if w["name"] == app_name:
+            name_flag = False
+            break
+        i += 1
+    if name_flag:
+        print("П/о с названием \"{}\" отсутствует в конфигурации".format(app_name))
+        return 1
+
+    conf_file["software"].pop(i)
+    json.dump(conf_file, open(conf_path, "w"), indent=4, sort_keys=True)
+    print("П/о с названием \"{}\" успешно удалено из конфигурации клиента".format(app_name))
+    return 0
+
+
+def list_f(prnt=True):
+    prnt = prnt
+    data = {"action": "get_list"}
+    r = request_setup(data=data)
+    if prnt:
+        print(json.dumps(r, sort_keys=True, indent=4))
+    return r
+
+
+if __name__ == "__main__":
+    if len(sys.argv) >= 2 and sys.argv[1] in ("register", "add", "del", "list"):
+        if sys.argv[1] == "register":
+            register_f()
+        if sys.argv[1] == "add":
+            add_f()
+        if sys.argv[1] == "del":
+            del_f()
+        if sys.argv[1] == "list":
+            list_f()
     else:
         print(__doc__)
-
-
-
-# MAIN part
-
-data = command(sys.argv)
-pw = getpass.getpass("Enter password: ")
-pw = hashlib.md5(str.encode(pw))
-data["key"] = pw.hexdigest()
-request_setup(data)
-
