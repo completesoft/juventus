@@ -116,6 +116,7 @@ def time_stamp():
 
 
 def drone_event(drone_id, drone_timestamp, event_id):
+    db = MySQLdb.connect(host="localhost", user="root", passwd="pass", db="hive")
     cursor = db.cursor()
     query = ('''INSERT INTO events (drone_id, drone_timestamp, event_id) VALUES ({0},FROM_UNIXTIME({1}),{2}) '''
                     ''' ON DUPLICATE KEY UPDATE drone_timestamp=FROM_UNIXTIME({1})'''
@@ -127,6 +128,7 @@ def drone_event(drone_id, drone_timestamp, event_id):
 
 
 def get_list_software():
+    db = MySQLdb.connect(host=config["database"]["host"], user="root", passwd="pass", db="hive", charset="utf8", use_unicode=True)
     cursor = db.cursor()
     cursor.execute("SELECT name, description, url, version FROM software")
     row_count = cursor.rowcount
@@ -149,6 +151,7 @@ def get_versions():
 
 
 def register_drone(drone_name):
+    db = MySQLdb.connect(host="localhost", user="root", passwd="pass", db="hive")
     cursor = db.cursor()
     cursor.execute("SELECT id FROM drones WHERE name='"+drone_name+"'")
     db.commit()
