@@ -1,6 +1,6 @@
 {
     "api": {
         "updater_dir": "D:/test",
-        "url": "http://hive.product.in.ua:8885/api"
+        "url": "http://localhost:8885/api"
     }
 }

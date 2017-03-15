@@ -1,72 +1,101 @@
 import requests
-import time
 import json
-import zipfile
-import os
+import os, sys
 import shutil
 import hashlib
+import psutil
+import logging
 
-softListPath = 'softList.txt'
-softListLocal = json.load(open(softListPath, "r"))
-work_station_id = 12345
-# url = 'http://localhost/python/phptest.php'
-url = "http://hive.product.in.ua:8885/api/debug/update"
-headers = {'content-type': 'application/json'}
-localPathTemp = "D:/test"
+logging.basicConfig(format = '[%(asctime)-19s] # %(levelname)-8s # --%(message)s-- #%(filename)s[LINE:%(lineno)d]#', level = logging.DEBUG, filename='client_log.log',datefmt='%Y-%m-%d %H:%M:%S')
+CONFIG_FILE = json.load(open("config.json", "r"))
 
 
-def first_request():
-    # data = {"id": work_station_id, "timestamp": int(time.time()), "status": "ok"}
-    # r = requests.post(url, headers=headers, json=data)
-    r = requests.post(url, headers=headers)
-    return r.json()
+def request_comm(url=CONFIG_FILE["url"], data=None, file_path=None):
+    url = url
+    if not file_path:
+        headers = {"content-type": "application/json"}
+        data = data
+        try:
+            r = requests.post(url, headers=headers, json=data)
+        except requests.RequestException as e:
+            logging.critical("{}".format(type(e).__name__))
+            sys.exit(1)
+        return r.json()
+    else:
+        local_archive_name = os.path.join(file_path, os.path.basename(url))
+        try:
+            r = requests.post(url)
+            with open(local_archive_name, "wb") as code:
+                code.write(r.content)
+        except requests.RequestException as e:
+            logging.critical("{}".format(type(e).__name__))
+            return 1
+        return local_archive_name
 
 
-def download(urlDownLoad, localPath=localPathTemp):
-    r = requests.post(urlDownLoad)
-    with open(os.path.join(localPath, os.path.basename(urlDownLoad)), "wb") as code:
-        code.write(r.content)
-    code.close()
+def search_update(ext_app_dict):
+    local_app_dict = [app for app in CONFIG_FILE["software"] if app["name"] == ext_app_dict["name"]][0]
+    zip_file = os.path.join(CONFIG_FILE["tmp_dir"], os.path.split(ext_app_dict["url"])[1])
+
+    # Taskkill all processes from local_path dir
+    process_id = [proc.pid for proc in psutil.process_iter()]
+    for pid in process_id:
+        p = psutil.Process(pid)
+        try:
+            path = p.exe()
+        except:
+            path = ""
+        if path and ((local_app_dict["local_path"]+"\\") in (os.path.split(path)[0]+"\\")):
+            os.system("taskkill /f /pid {}".format(pid))
+
+    # Make backup.zip
+    arch_path = os.path.join(CONFIG_FILE["backup_dir"], "{0}_{1}".format(local_app_dict["name"], local_app_dict["version"]))
+    try:
+        shutil.make_archive(arch_path, format='zip', root_dir=local_app_dict["local_path"])
+    except Exception as e:
+        logging.critical("Unzip fail:"+e)
+        return 1
 
 
-def archive_unzip_update(url_app, app_name):
-    print(os.path.split(url_app)[1])
-    zip_obj = zipfile.ZipFile(os.path.join(localPathTemp, os.path.split(url_app)[1]))
-    extract_list = zip_obj.namelist()
-    os.mkdir()
-    zip_obj.extractall(localPathTemp)
-    zip_obj.close()
-    # app_summary = get_app_on_name(url_app)
-    # for f in extract_list:
-    #     if os.path.isfile(os.path.join(app_summary["cwd"], f)):
-    #         name, extension = os.path.splitext(f)
-    #         os.rename(os.path.join(app_summary["cwd"], f), os.path.join(app_summary["cwd"], (name+"_old"+extension)))
-    #         shutil.move(os.path.join(localPathTemp, f), os.path.join(app_summary["cwd"], f))
-    #     else:
-    #         shutil.move(os.path.join(localPathTemp, f), os.path.join(app_summary["cwd"], f))
+    # Unzip and update file(s)
+    try:
+        shutil.unpack_archive(zip_file, extract_dir=local_app_dict["local_path"], format="zip")
+    except Exception as e:
+        logging.critical("Copying files ABORT: "+e)
+        return 1
+    else:
+        mes = config_update(ext_app_dict)
+
+    return mes
 
 
+def config_update(ext_app_dict):
+    try:
+        config = json.load(open("config.json", "r"))
+        for app in config["software"]:
+            if app["name"] == ext_app_dict["name"]:
+                app["version"] = ext_app_dict["version"]
+                break
+        with open("config.json", "w") as file:
+            json.dump(config, file, indent=4, sort_keys=True)
+    except Exception as e:
+        logging.error("Запись в config не сделана. Приложение {} обновлено до версии {}".format(ext_app_dict["name"], ext_app_dict["version"]))
+    return 'Приложение: {} обновлено!'.format(ext_app_dict['name'])
 
 
-def ver_info():
-    soft_info = {"id": work_station_id, "timestamp": int(time.time()), "status": "versions_info"}
-    soft_info["software"] = json.load(open(softListPath, "r"))
-    print(soft_info)
-    r = requests.post(url, headers=headers, json=json.dumps(soft_info))
-    return r.json()
-
-
-def hash_control(urlDownload, hash_income):
-    file_name= os.path.basename(urlDownload)
+def hash_control(file_path, hash_income):
     hash_md5 = hashlib.md5()
-    with open(localPathTemp+file_name, "rb") as f:
+    with open(file_path, "rb") as f:
         for chank in iter(lambda: f.read(2048), b""):
             hash_md5.update(chank)
-    return hash_md5.hexdigest if hash_md5.hexdigest()== hash_income else 0
+    if hash_md5.hexdigest()== hash_income:
+        logging.info("Hash compare - OK")
+        return 0
+    else:
+        logging.critical("Hash control NOT pass")
+        return 1
 
 
-def get_app_on_name(url_app):
-    app_name = os.path.splitext(os.path.split(url_app)[1])[0]
-    for app_summary in softListLocal:
-        if app_name == app_summary["name"]:
-            return app_summary
+
+
+

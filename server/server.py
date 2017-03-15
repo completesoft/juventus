@@ -61,27 +61,27 @@ def api():
             if content["action"] == "get_schedule":
                 resp = {
                         "main_stream": {
-                            "url": "http://ic4.101.ru:8000/p193366",
+                            "url": "http://localhost/1.mp3",
                             "volume": 100
                         },
                         "inserts": [
                             {
                                 "description": "donuts",
                                 "time": "11:00:00",
-                                "url": "http://hive.product.in.ua/music/reklama_1.mp3",
+                                "url": "http://localhost/2.mp3",
                                 "volume": 100,
                             },
                             {
                                 "description": "meat",
-                                "time": "12:00:00",
-                                "url": "http://hive.product.in.ua/music/reklama_2.mp3",
+                                "time": "12:43:30",
+                                "url": "http://localhost/3.mp3",
                                 "volume": 100,
                             }
                         ],
                         "silent": [
                             {
                                 "description": "lunch break",
-                                "time_start": "13:00:00",
+                                "time_start": "12:50:00",
                                 "time_end": "14:00:00"
                             },
                             {
@@ -116,7 +116,7 @@ def time_stamp():
 
 
 def drone_event(drone_id, drone_timestamp, event_id):
-    db = MySQLdb.connect(host="localhost", user="root", passwd="pass", db="hive")
+    db = MySQLdb.connect(host="localhost", user="root", passwd=config["database"]["password"], db="hive")
     cursor = db.cursor()
     query = ('''INSERT INTO events (drone_id, drone_timestamp, event_id) VALUES ({0},FROM_UNIXTIME({1}),{2}) '''
                     ''' ON DUPLICATE KEY UPDATE drone_timestamp=FROM_UNIXTIME({1})'''
@@ -128,7 +128,7 @@ def drone_event(drone_id, drone_timestamp, event_id):
 
 
 def get_list_software():
-    db = MySQLdb.connect(host=config["database"]["host"], user="root", passwd="pass", db="hive", charset="utf8", use_unicode=True)
+    db = MySQLdb.connect(host=config["database"]["host"], user="root", passwd=config["database"]["password"], db="hive", charset="utf8", use_unicode=True)
     cursor = db.cursor()
     cursor.execute("SELECT name, description, url, version FROM software")
     row_count = cursor.rowcount
@@ -151,7 +151,7 @@ def get_versions():
 
 
 def register_drone(drone_name):
-    db = MySQLdb.connect(host="localhost", user="root", passwd="pass", db="hive")
+    db = MySQLdb.connect(host="localhost", user="root", passwd=config["database"]["password"], db="hive")
     cursor = db.cursor()
     cursor.execute("SELECT id FROM drones WHERE name='"+drone_name+"'")
     db.commit()
