@@ -111,6 +111,7 @@ def register_f(client_name=""):
         # Add info to config.json
         config.update({"tmp_dir": "tmp",
                        "backup_dir": "backup",
+                       "url": json.load(open("setup-config.json", "r"))["api"]["url"],
                        "software": [
                       {
                        "name": soft_info["name"],
