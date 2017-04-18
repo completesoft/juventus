@@ -40,7 +40,7 @@ def api():
             if content["action"] == "alive":
                 if "id" and "timestamp" in content:
                     drone_event(content["id"], content["timestamp"], 1)
-                    if content["id"] == 2:
+                    if content["id"] == 78:
                         resp = {"status": "get_versions"}
                         return jsonify(resp)
                 else:
@@ -49,8 +49,8 @@ def api():
             if content["action"] == "soft_versions":
                 if "id" and "software" in content:
                     # for soft_item in content["software"]:
-                    resp = {"status": "update", "software": [{"name": content["software"][0]["name"],
-                            "version": "2018030301", "url": "http://update.product.in.ua/new/test/test_update.zip"}]}
+                    resp = {"status": "update", "software": [{"name": content["software"][1]["name"],
+                            "version": 2018030301, "url": "http://update.product.in.ua/new/test/test_update.zip"}]}
                 else:
                     resp = {"error": "I want more options"}
 

@@ -1,60 +1,48 @@
 import json
-import os
+import os, sys
 import shutil
+import logging
+import ctypes
 import time
+from client.lib import *
 
-try:
-    from lib import *
-except ImportError as e:
-    shutil.unpack_archive(os.path.join(json.load(open("config.json", "r"))["tmp_dir"], "lib.zip"), os.getcwd(), format="zip")
-    from lib import *
-    logging.warn(e)
 
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+filehandler = logging.handlers.RotatingFileHandler('client_log.log', encoding='utf8', maxBytes=100000, backupCount=1)
+formatter = logging.Formatter(fmt='[%(asctime)-19s] # %(levelname)-8s #'
+            '  %(message)s  #%(filename)s[LINE:%(lineno)d]#', datefmt='%Y-%m-%d %H:%M:%S')
+filehandler.setFormatter(formatter)
+log.addHandler(filehandler)
 
 resp = request_comm(data={"action":"alive", "id": CONFIG_FILE["id"], "timestamp": int(time.time())})
 
-if resp["status"] == "get_versions":
-    resp = request_comm(data=CONFIG_FILE)
 
-if resp["status"] == "update":
-    for app in resp["software"]:
-        loc_archive = request_comm(url=app["url"], file_path=CONFIG_FILE["tmp_dir"])
-        if loc_archive == 1:
-            continue
-        if not hash_control(loc_archive, app["hash"]):
-            continue
-        mes = search_update(app)== 1
-        if mes == 1:
-            continue
+while resp["status"] != "None":
 
+    if resp["status"] == "get_versions":
+        data = {"action": "soft_versions", "id": CONFIG_FILE["id"], "timestamp": int(time.time()), "software": CONFIG_FILE["software"]}
+        resp = request_comm(data=data)
 
-if resp["status"] == "self" or resp["status"] == "self_lib":
-    loc_archive = request_comm(url=resp["url"], file_path=CONFIG_FILE["tmp_dir"])
-    if loc_archive == 1:
-        logging.critical("Command \'update {}\' ABORT. Can\'t download {}".format(resp["status"], resp["url"]))
-        sys.exit(1)
-    if not hash_control(loc_archive, resp["software"][0]["hash"]):
-        sys.exit(1)
-    try:
-        if resp["status"] == "self":
-            shutil.move(sys.argv[0], CONFIG_FILE["tmp_dir"])
-            shutil.unpack_archive(loc_archive, os.getcwd(), format="zip")
-        if resp["status"] == "self_lib":
-            shutil.move(os.path.join(os.path.split(sys.argv[0])[0], "lib.py"), CONFIG_FILE["tmp_dir"])
-            shutil.unpack_archive(loc_archive, os.getcwd(), format="zip")
-    except Exception as e:
-        logging.critical("Unzip fail: "+e)
-        sys.exit(1)
+    if resp["status"] == "update":
+        summary = dict.fromkeys([k["name"] for k in resp["software"]])
+        for app in resp["software"]:
+            try:
+                loc_archive = request_comm(url=app["url"], file_path=CONFIG_FILE["tmp_dir"])
+                hash_control(loc_archive, app["hash"])
+                search_update(app)
+                config_update(app)
+            except Exception :
+                log.critical(sys.exc_info()[0:2])
+                log.critical("\"{}\" => Crash update".format(app['name']))
+                summary[app['name']]="Crash update"
+                continue
+            else:
+                log.debug(" \"{}\" => Successful update".format(app['name']))
+                summary[app['name']]="Successful update"
+        log.info("*Summed updating:*")
+        for k in summary:
+            log.info("**{} => {}".format(k, summary[k]))
 
 
-if resp["status"] == "execute":
-    loc_archive = request_comm(url=resp["url"], file_path=CONFIG_FILE["tmp_dir"])
-    if loc_archive == 1:
-        logging.critical("Command \'{}\' ABORT. Can\'t download {}".format(resp["status"], resp["url"]))
-        sys.exit(1)
-    if not hash_control(loc_archive, resp["software"][0]["hash"]):
-        sys.exit(1)
-    shutil.unpack_archive(loc_archive, extract_dir=CONFIG_FILE["tmp_dir"], format="zip")
-    loc_path = os.path.splitext(loc_archive)[0]+".py"
-    if not os.system("python {}".format(loc_path)):
-        sys.exit(0)
+

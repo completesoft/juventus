@@ -178,7 +178,7 @@ def add_f(app_name=None, path=None):
         "version": None,
         "local_path": path,
         "dialog": 0,
-        "state": "update"
+        "state": "normal"
     }
 
     loc_conf_file["software"].append(app_dict)
