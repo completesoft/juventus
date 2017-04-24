@@ -22,6 +22,7 @@ def hello():
 
 @app.route("/api", methods=['POST'])
 def api():
+    # admintools`s registration block
     resp = {"status": "none"}
     content = request.get_json(silent=True)
     if content:
@@ -37,20 +38,22 @@ def api():
                 else:
                     resp = {"error": "I want more options"}
 
+# client`s conversation block
             if content["action"] == "alive":
                 if "id" and "timestamp" in content:
                     drone_event(content["id"], content["timestamp"], 1)
-                    if content["id"] == 78:
-                        resp = {"status": "get_versions"}
-                        return jsonify(resp)
+                    resp = {"status": "get_versions"}
+                    return jsonify(resp)
                 else:
                     resp = {"error": "I want more options"}
 
             if content["action"] == "soft_versions":
                 if "id" and "software" in content:
-                    # for soft_item in content["software"]:
-                    resp = {"status": "update", "software": [{"name": content["software"][1]["name"],
-                            "version": 2018030301, "url": "http://update.product.in.ua/new/test/test_update.zip"}]}
+                    # # for soft_item in content["software"]:
+                    # resp = {"status": "update", "software": [{"name": content["software"][1]["name"],
+                    #         "version": 2018030355, "url": "http://update.product.in.ua/new/test/test_update.zip", "hash": "f5b805c107ddf2ceabc836ea9105374d"}]}
+                    print("IN SOFT VERSION")
+                    resp = soft_list(content)
                 else:
                     resp = {"error": "I want more options"}
 
@@ -58,56 +61,8 @@ def api():
                 list = get_list_software()
                 resp = {"software": list}
 
-            if content["action"] == "get_schedule":
-                resp = {
-                        "main_stream": {
-                            "url": "http://localhost/1.mp3",
-                            "volume": 100
-                        },
-                        "inserts": [
-                            {
-                                "description": "donuts",
-                                "time": "11:00:00",
-                                "url": "http://localhost/2.mp3",
-                                "volume": 100,
-                            },
-                            {
-                                "description": "meat",
-                                "time": "12:43:30",
-                                "url": "http://localhost/3.mp3",
-                                "volume": 100,
-                            }
-                        ],
-                        "silent": [
-                            {
-                                "description": "lunch break",
-                                "time_start": "12:50:00",
-                                "time_end": "14:00:00"
-                            },
-                            {
-                                "description": "night1",
-                                "time_start": "20:00:00",
-                                "time_end": "23:59:59"
-                            },
-                            {
-                                "description": "night2",
-                                "time_start": "00:00:00",
-                                "time_end": "07:00:00"
-                            }
-                        ]
-                        }
-    return jsonify(resp)
-
-
-@app.route("/api/debug/update",  methods=['GET', 'POST'])
-def update():
-    resp = {"status": "update", "software": [{"name": "test", "version": "2017010101", "url": "http://update.product.in.ua/new/test/test_update.zip"}]}
-    return jsonify(resp)
-
-
-@app.route("/api/debug/get_ver", methods=['GET', 'POST'])
-def get_ver():
-    resp = {"status": "get_versions"}
+            if content["action"] == "update_complete":
+                resp = {"status": "none"}
     return jsonify(resp)
 
 
@@ -143,6 +98,35 @@ def get_list_software():
 
             soft.append(soft_item)
     return soft
+
+"""
+Function assemble soft_list for update procedure.
+Compare income versions with server versions
+"""
+def soft_list(content):
+    db = MySQLdb.connect(host=config["database"]["host"], user="root", passwd=config["database"]["password"], db="hive", charset="utf8", use_unicode=True)
+    cursor = db.cursor()
+    cursor.execute("SELECT name, description, url, version FROM software")
+    row_count = cursor.rowcount
+    resp = {"status": "update", "software": []}
+    if row_count > 0:
+        for (name, description, url, version) in cursor:
+            for app in content["software"]:
+                if app["name"]==name and app["version"]<version:
+                    soft_item = {}
+                    soft_item["name"] = name
+                    soft_item["description"] = description
+                    soft_item["version"] = version
+                    soft_item["url"] = url
+                    #soft_item["hash"] = hash
+
+                    resp["software"].append(soft_item)
+                    break
+        if not resp["software"]:
+            resp = {"status": "none"}
+    else:
+        resp = {"status": "none"}
+    return resp
 
 
 def get_versions():

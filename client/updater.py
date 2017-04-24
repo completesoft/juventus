@@ -19,7 +19,7 @@ set_pid(reset=False)
 
 resp = request_comm(data={"action":"alive", "id": CONFIG_FILE["id"], "timestamp": int(time.time())})
 
-while resp["status"] != "None":
+while resp["status"] != "none":
 
     if resp["status"] == "get_versions":
         data = {"action": "soft_versions", "id": CONFIG_FILE["id"], "timestamp": int(time.time()), "software": CONFIG_FILE["software"]}
@@ -32,7 +32,7 @@ while resp["status"] != "None":
         for app in resp["software"]:
             try:
                 loc_archive = request_comm(url=app["url"], file_path=CONFIG_FILE["tmp_dir"])
-                hash_control(loc_archive, app["hash"])
+                #hash_control(loc_archive, app["hash"])
                 task_killer(app)
                 backup_update(app)
                 config_update(app)
@@ -49,7 +49,4 @@ while resp["status"] != "None":
         for k in summary:
             log.info("***{} => {}".format(k, summary[k]))
         set_pid(reset=True)
-
-    resp = request_comm(data={"action": "alive", "id": CONFIG_FILE["id"], "timestamp": int(time.time())})
-
-
+        resp = request_comm(data={"action": "update_complete", "id": CONFIG_FILE["id"], "timestamp": int(time.time())})

@@ -175,7 +175,7 @@ def add_f(app_name=None, path=None):
 
     app_dict = {
         "name": app_name,
-        "version": None,
+        "version": False,
         "local_path": path,
         "dialog": 0,
         "state": "normal"
