@@ -4,7 +4,7 @@ import shutil
 import logging.handlers
 import ctypes
 import time
-from client.lib import *
+from lib_updater import *
 
 
 log = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ while resp["status"] != "none":
                 backup_update(app)
                 config_update(app)
             except Exception :
-                log.critical(sys.exc_info()[0:2])
+                log.critical(sys.exc_info()[:])
                 log.critical("\"{}\" => Crash update".format(app['name']))
                 summary[app['name']]="Crash update"
                 continue

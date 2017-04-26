@@ -89,8 +89,7 @@ def task_killer(app_dict):
             if local_app_dict['dialog']==1:
                 while psutil.pid_exists(pid.pid):
                     answ = ctypes.windll.user32.MessageBoxW(0, "Закройте приложение \"{}\" и нажмите ОК".format(pid.name()), "ОБНОВЛЕНИЕ ПРИЛОЖЕНИЯ", 4112)
-            else:
-                pid.kill()
+            pid.kill()
     return 0
 
 
