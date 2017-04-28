@@ -9,6 +9,8 @@ import ctypes
 import time
 import logging
 
+MES_FOR_UPDATE = "Для обновления приложения:\r\n    \"**{}**\"\r\nзакройте его и нажмите ОК.\r\nЧтобы обновить позже нажмите \"Cancel\"."
+
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 filehandler = logging.handlers.RotatingFileHandler('client_log.log', encoding='utf8', maxBytes=100000, backupCount=1)
@@ -88,7 +90,9 @@ def task_killer(app_dict):
         if path and ((local_app_dict["local_path"] + "\\") in (os.path.split(path)[0] + "\\")):
             if local_app_dict['dialog']==1:
                 while psutil.pid_exists(pid.pid):
-                    answ = ctypes.windll.user32.MessageBoxW(0, "Закройте приложение \"{}\" и нажмите ОК".format(pid.name()), "ОБНОВЛЕНИЕ ПРИЛОЖЕНИЯ", 4112)
+                    answ = ctypes.windll.user32.MessageBoxW(0, MES_FOR_UPDATE.format(app_dict["description"]), "ОБНОВЛЕНИЕ ПРИЛОЖЕНИЯ", 4113)
+                    if answ==2:
+                        raise Exception("User reject update")
             pid.kill()
     return 0
 

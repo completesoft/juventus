@@ -53,6 +53,7 @@ def api():
                     # resp = {"status": "update", "software": [{"name": content["software"][1]["name"],
                     #         "version": 2018030355, "url": "http://update.product.in.ua/new/test/test_update.zip", "hash": "f5b805c107ddf2ceabc836ea9105374d"}]}
                     print("IN SOFT VERSION")
+                    # Send "update" message and app list for update. Header and soft list assambling in soft_list() func
                     resp = soft_list(content)
                 else:
                     resp = {"error": "I want more options"}

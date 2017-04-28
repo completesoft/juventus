@@ -4,8 +4,10 @@ import shutil
 import logging.handlers
 import ctypes
 import time
+import traceback
 from lib_updater import *
 
+MES_UPDATE_SUCCESS = "Приложение \"{}\" обновлено.\r\n   Нажмите ОК"
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -37,12 +39,13 @@ while resp["status"] != "none":
                 backup_update(app)
                 config_update(app)
             except Exception :
-                log.critical(sys.exc_info()[:])
+                log.critical(sys.exc_info()[0:2])
+                log.critical(traceback.format_exc())
                 log.critical("\"{}\" => Crash update".format(app['name']))
                 summary[app['name']]="Crash update"
                 continue
             else:
-                ctypes.windll.user32.MessageBoxW(0, "Приложение \"{}\" обновлено.\r\nНажмите ОК".format(app["name"]), "ОБНОВЛЕНИЕ ПРИЛОЖЕНИЯ", 4160)
+                ctypes.windll.user32.MessageBoxW(0, MES_UPDATE_SUCCESS.format(app["description"]), "ОБНОВЛЕНИЕ ПРИЛОЖЕНИЯ", 4160)
                 log.debug("\"{}\" => Successful update".format(app['name']))
                 summary[app['name']]="Successful update"
         log.info("*Summed updating:*")
