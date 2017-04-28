@@ -5,6 +5,7 @@ import logging.handlers
 import ctypes
 import time
 import traceback
+import requests
 from lib_updater import *
 
 MES_UPDATE_SUCCESS = "Приложение \"{}\" обновлено.\r\n   Нажмите ОК"
@@ -18,8 +19,11 @@ log.addHandler(filehandler)
 
 check_pid()
 set_pid(reset=False)
-
-resp = request_comm(data={"action":"alive", "id": CONFIG_FILE["id"], "timestamp": int(time.time())})
+try:
+    resp = request_comm(data={"action":"alive", "id": CONFIG_FILE["id"], "timestamp": int(time.time())})
+except Exception as e:
+    log.critical(e)
+    sys.exit(1)
 
 while resp["status"] != "none":
 
