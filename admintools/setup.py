@@ -217,7 +217,9 @@ def list_f(prnt=True):
     data = {"action": "get_list"}
     r = request_setup(data=data)
     if prnt:
-        print(json.dumps(r, sort_keys=True, indent=4))
+        print('{:^20} {:^20}'.format('**Кодовое имя**', '**Описание**'))
+        for app in r['software']:
+            print('{:<20} {:<}'.format(app['name'], app['description']))
     return r
 
 
