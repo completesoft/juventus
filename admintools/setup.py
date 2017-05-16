@@ -6,14 +6,38 @@
                 |_|
 
           ***Скрипт установки клиента***
+Осуществляет установку и настройку клиента обновления п\о.
+Все используемые команды влияют только на конфигурацию клиента обновления (кроме команды list)
 
-setup.py [команда [параметр]]
 
-    Команда регистрации клиента:
+setup.py [команда [параметры]]
+
+    *Команда регистрации клиента:
         register имя_клиента
 
-    Параметр:
-        имя клиента
+        Параметры:
+            имя клиента
+
+    **Команда добавления п/о в конфигурацию клиента:
+        add название_по директория_установленного_по
+
+        Параметры:
+            название_по - кодовое имя программы
+            директория_установленного_по - абсолютный путь к рабочу директории добавляемой программы
+                                           (Например D:\Programs\Torg)
+
+    ***Команда удаления п\о из конфигурации клиента (не удаляет само п.о):
+        del название_по
+
+        Параметры:
+            название_по - кодовое имя программы
+
+    ****Команда просмотра доступного п/о для регистрации:
+        list
+
+        Параметры:
+            - БЕЗ ПАРАМЕТРОВ
+
 """
 import zipfile
 import getpass
@@ -50,10 +74,20 @@ def request_setup(url=json.load(open("setup-config.json", "r"))["api"]["url"], d
     data = data
     headers = {"content-type": "application/json"}
     if data:
-        r = requests.post(url, headers=headers, json=data)
+        try:
+            r = requests.post(url, headers=headers, json=data)
+        except requests.ConnectionError as e:
+            print(e)
+            input('Нажмите любую кнопку')
+            sys.exit()
         return r.json()
     else:
-        r = requests.post(url)
+        try:
+            r = requests.post(url)
+        except requests.ConnectionError as e:
+            print(e)
+            input('Нажмите любую кнопку')
+            sys.exit()
         return r.content
 
 
